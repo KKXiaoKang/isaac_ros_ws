@@ -1,0 +1,26 @@
+image: python:3.10-buster
+
+# Change pip's cache directory to be inside the project directory since we can
+# only cache local items.
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+# Pip's cache doesn't store the python packages
+# https://pip.pypa.io/en/stable/reference/pip_install/#caching
+cache:
+  paths:
+    - .cache/pip
+    - public
+
+before_script:
+  - "pip install --upgrade pip wheel==0.38.4"
+  - "pip install .[dev,rl]"
+
+stages:
+  - lint
+  - pages
+
+lint:
+  stage: lint
+  script:
+    - bash scripts/lint.sh

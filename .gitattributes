@@ -1,0 +1,2 @@
+nio-isaac/nio/assets/car/car.usd filter=lfs diff=lfs merge=lfs -text
+nio-isaac/nio/assets/kuavo.usd filter=lfs diff=lfs merge=lfs -text

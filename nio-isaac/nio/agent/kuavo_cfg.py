@@ -1,22 +1,176 @@
 # import math
 from dataclasses import dataclass
+import os 
+
+"""
+    - 45 4pro长手index
+[2, 3, 7, 8, 12, 13, 16, 17, 20, 21, 24, 25, 26, 27] # 手
+[0, 1, 5, 6, 10, 11, 14, 15, 18, 19, 22, 23] # 脚
+leg_l1_joint:  0
+leg_l2_joint:  5
+leg_l3_joint:  10
+leg_l4_joint:  14
+leg_l5_joint:  18
+leg_l6_joint:  22
+leg_r1_joint:  1
+leg_r2_joint:  6
+leg_r3_joint:  11
+leg_r4_joint:  15
+leg_r5_joint:  19
+leg_r6_joint:  23
+zarm_l1_joint:  2
+zarm_l2_joint:  7
+zarm_l3_joint:  12
+zarm_l4_joint:  16
+zarm_l5_joint:  20
+zarm_l6_joint:  24
+zarm_l7_joint:  26
+zarm_r1_joint:  3
+zarm_r2_joint:  8
+zarm_r3_joint:  13
+zarm_r4_joint:  17
+zarm_r5_joint:  21
+zarm_r6_joint:  25
+zarm_r7_joint:  27
+"""
+
+"""
+    - 40 4代短手短脚index
+[2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 24, 25] # 手
+[0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21] # 脚
+leg_l1_joint:  0
+leg_l2_joint:  4
+leg_l3_joint:  8
+leg_l4_joint:  12
+leg_l5_joint:  16
+leg_l6_joint:  20
+leg_r1_joint:  1
+leg_r2_joint:  5
+leg_r3_joint:  9
+leg_r4_joint:  13
+leg_r5_joint:  17
+leg_r6_joint:  21
+zarm_l1_joint:  2
+zarm_l2_joint:  6
+zarm_l3_joint:  10
+zarm_l4_joint:  14
+zarm_l5_joint:  18
+zarm_l6_joint:  22
+zarm_l7_joint:  24
+zarm_r1_joint:  3
+zarm_r2_joint:  7
+zarm_r3_joint:  11
+zarm_r4_joint:  15
+zarm_r5_joint:  19
+zarm_r6_joint:  23
+zarm_r7_joint:  25
+"""
+
+"""
+    - /sensor_data_raw
+leg_l1_joint
+leg_l2_joint
+leg_l3_joint
+leg_l4_joint
+leg_l5_joint
+leg_l6_joint
+leg_r1_joint
+leg_r2_joint
+leg_r3_joint
+leg_r4_joint
+leg_r5_joint
+leg_r6_joint
+zarm_l1_joint
+zarm_l2_joint
+zarm_l3_joint
+zarm_l4_joint
+zarm_l5_joint
+zarm_l6_joint
+zarm_l7_joint
+zarm_r1_joint
+zarm_r2_joint
+zarm_r3_joint
+zarm_r4_joint
+zarm_r5_joint
+zarm_r6_joint
+zarm_r7_joint
+
+    - /joint_cmd
+leg_l1_joint
+leg_l2_joint
+leg_l3_joint
+leg_l4_joint
+leg_l5_joint
+leg_l6_joint
+leg_r1_joint
+leg_r2_joint
+leg_r3_joint
+leg_r4_joint
+leg_r5_joint
+leg_r6_joint
+zarm_l1_joint
+zarm_l2_joint
+zarm_l3_joint
+zarm_l4_joint
+zarm_l5_joint
+zarm_l6_joint
+zarm_l7_joint
+zarm_r1_joint
+zarm_r2_joint
+zarm_r3_joint
+zarm_r4_joint
+zarm_r5_joint
+zarm_r6_joint
+zarm_r7_joint
+"""
+
+ROBOT_CFG_VERSION = int(os.getenv('ROBOT_VERSION', '45'))  # 45 作为默认值
 
 # -- Default joint positions
-leg_initial_pos = [
-    -0.01867,
-    -0.00196,
-    -0.65815,
-    0.86691,
-    -0.31346,
-    0.01878,
-    0.01868,
-    0.00197,
-    -0.65815,
-    0.86692,
-    -0.31347,
-    -0.01878,
-]
+if ROBOT_CFG_VERSION == 40:  # 40机器人版本
+    leg_initial_pos = [
+        -0.01867,
+        -0.00196,
+        -0.65815,
+        0.86691,
+        -0.31346,
+        0.01878,
+        0.01868,
+        0.00197,
+        -0.65815,
+        0.86692,
+        -0.31347,
+        -0.01878,
+    ]
+elif ROBOT_CFG_VERSION == 45: # 45机器人版本
+    leg_initial_pos = [
+        # 0.019261428815576857, 
+        # -0.00045136328460131054, 
+        # -0.43481393825194736, 
+        # 0.8039334953864262, 
+        # -0.42160852567923673, 
+        # -0.019496106666018503, 
+        # -0.018612237030482745, 
+        # 0.0004750694793674156, 
+        # -0.4351996575694833, 
+        # 0.8051857566912588, 
+        # -0.42247366974489636, 
+        # 0.018264046641757747
+        0.01867,  # 左腿
+        -0.00196,
+        -0.43815,
+        0.80691,
+        -0.31346,
+        0.01878,
+        -0.01867, # 右腿
+        0.00196,
+        -0.43815,
+        0.80691,
+        -0.31346,
+        -0.01878,
+    ]
 
+# 初始手臂位置
 arm_initial_pos = [0] * 14
 TAU_LEG_FLAG = True
 TAU_ARM_FLAG = False
@@ -153,6 +307,17 @@ else: # 速度控制模式
         "zarm_r7_joint": 8,
     }   
 
+# 添加头部关节配置
+head_dof_stiffness = {
+    "zhead_1_joint": 0,  # 速度控制模式下刚度为0
+    "zhead_2_joint": 0,
+}
+
+head_dof_damping = {
+    "zhead_1_joint": 200,  # 阻尼系数
+    "zhead_2_joint": 200,  # 阻尼系数
+}
+
 @dataclass
 class DefaultStateCfg:
     # -- limits
@@ -197,6 +362,10 @@ KuavoCfg = {
         "leg_r4_joint",
         "leg_r5_joint",
         "leg_r6_joint",
+    },
+    "head_names": {  # 添加头部关节集合
+        "zhead_1_joint",
+        "zhead_2_joint",
     },
     "default_state": {
         "zarm_l1_joint": DefaultStateCfg(
@@ -354,6 +523,18 @@ KuavoCfg = {
             stiffness=leg_dof_stiffness["leg_r6_joint"],
             damping=leg_dof_damping["leg_r6_joint"],
             dof_pos=leg_initial_pos[11],
+        ),
+        "zhead_1_joint": DefaultStateCfg(
+            effort_limit=1e30,
+            stiffness=head_dof_stiffness["zhead_1_joint"],
+            damping=head_dof_damping["zhead_1_joint"],
+            dof_pos=0.0,
+        ),
+        "zhead_2_joint": DefaultStateCfg(
+            effort_limit=1e30,
+            stiffness=head_dof_stiffness["zhead_2_joint"],
+            damping=head_dof_damping["zhead_2_joint"],
+            dof_pos=0.0,
         ),
     },
 }

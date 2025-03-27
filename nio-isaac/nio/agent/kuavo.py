@@ -16,6 +16,7 @@ class Kuavo(Articulation):
         self._prim_path = "/World/Kuavo"
         self._arm_idx = []
         self._leg_idx = []
+        self._head_idx = []
         self._default_dof_effort_limit = None
         self._default_dof_stiffness = None
         self._default_dof_damping = None
@@ -36,10 +37,17 @@ class Kuavo(Articulation):
     def initialize(self, physics_sim_view=None):
         self._arm_idx = []
         self._leg_idx = []
+        self._head_idx = []
         super().initialize(physics_sim_view)
-        for body_name in self._articulation_view.body_names:
-            body = RigidPrim(prim_path=f"{self._prim_path}/{body_name}", name=body_name)
+        print(f"self._prim_path: {self._prim_path}")
+        print(f"self._articulation_view.body_names: {self._articulation_view.body_names}")
 
+        for body_name in self._articulation_view.body_names:
+            # 跳过dummy_link
+            if body_name == 'dummy_link':
+                continue
+            # 加载剩下刚体
+            body = RigidPrim(prim_path=f"{self._prim_path}/{body_name}", name=body_name)
             body.initialize()
             body._rigid_prim_view.enable_gravities()  # pylint: disable=W0212
             self._bodies[body_name] = body
@@ -76,6 +84,9 @@ class Kuavo(Articulation):
         }
 
     def get_joint_state(self) -> Dict:
+        """
+            根据手臂/腿部索引获取关节位置/速度/力矩
+        """
         joint_positions = self.get_joint_positions()
         joint_velocities = self.get_joint_velocities()
         joint_applied_efforts = self.get_applied_joint_efforts()
@@ -192,6 +203,14 @@ class Kuavo(Articulation):
             self._pre_physics_step(self._arm_idx, command_dict["arms"])
         if command_dict.get("legs", None):
             self._pre_physics_step(self._leg_idx, command_dict["legs"])
+            
+        # 添加头部关节的速度控制
+        if len(self._head_idx) > 0: # 只有45下才会有头部index
+            head_command = {
+                "ctrl_mode": "velocity",
+                "joint_values": torch.zeros(len(self._head_idx)),  # 固定速度为0
+            }
+            self._pre_physics_step(self._head_idx, head_command)
 
     @property
     def physics_view(self):
@@ -230,6 +249,8 @@ class Kuavo(Articulation):
                     self._arm_idx.append(idx)
                 if joint_name in self.cfg["leg_names"]:
                     self._leg_idx.append(idx)
+                if joint_name in self.cfg["head_names"]: # 只有45下才会有头部index
+                    self._head_idx.append(idx)
 
     def _pre_physics_step(self, idx: List, command_dict: dict = None):
         if not command_dict:
@@ -257,7 +278,8 @@ class Kuavo(Articulation):
                 joint_velocities=joint_value,
                 joint_indices=idx,
             )
-            # print(f" index : {idx} ----------------- leg --- velocity ------ control ---------------------")
+            # print(f" index : {idx} ----------------- arm --- velocity ------ control ---------------------")
+            # print(f"joint_value: {joint_value}  ----------------- arm --- velocity ------ control ---------------------")
             self._articulation_view.apply_action(target_action)
 
         if command_dict.get("ctrl_mode", None) == "effort":
@@ -266,6 +288,7 @@ class Kuavo(Articulation):
                 joint_indices=idx,
             )
             # print(f" index : {idx} ----------------- leg --- effort ------ control ---------------------")
+            #print(f"joint_value: {joint_value}  ----------------- leg --- effort ------ control ---------------------")
             self._articulation_view.apply_action(target_action)
 
         return

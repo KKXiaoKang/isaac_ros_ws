@@ -1,4 +1,13 @@
 <launch>  
-    <node pkg="tcp_cpp" name="tcp_cpp_simulate" type="tcp_cpp_simulate" output="screen" />
-    <node pkg="tcp_cpp" name="isaac_sim_launcher" type="launch.py" output="screen" />
+    <!-- Add robot version argument -->
+    <arg name="robot_version" default="$(optenv ROBOT_VERSION 45)"/>
+
+    <node pkg="tcp_cpp" name="tcp_cpp_simulate" type="tcp_cpp_simulate" output="screen">
+        <!-- Pass robot version parameter to the node -->
+        <param name="robot_version" value="$(arg robot_version)"/>
+    </node>
+    <node pkg="tcp_cpp" name="isaac_sim_launcher" type="launch.py" output="screen">
+        <!-- Pass robot version parameter to the python launcher -->
+        <param name="robot_version" value="$(arg robot_version)"/>
+    </node>
 </launch>  

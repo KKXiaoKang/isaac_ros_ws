@@ -69,35 +69,6 @@ obs_agent:
       dtype=float32)}
 """
 
-"""
-leg_l1_joint:  0
-leg_l2_joint:  4
-leg_l3_joint:  8
-leg_l4_joint:  12
-leg_l5_joint:  16
-leg_l6_joint:  20
-leg_r1_joint:  1
-leg_r2_joint:  5
-leg_r3_joint:  9
-leg_r4_joint:  13
-leg_r5_joint:  17
-leg_r6_joint:  21
-zarm_l1_joint:  2
-zarm_l2_joint:  6
-zarm_l3_joint:  10
-zarm_l4_joint:  14
-zarm_l5_joint:  18
-zarm_l6_joint:  22
-zarm_l7_joint:  24
-zarm_r1_joint:  3
-zarm_r2_joint:  7
-zarm_r3_joint:  11
-zarm_r4_joint:  15
-zarm_r5_joint:  19
-zarm_r6_joint:  23
-zarm_r7_joint:  25
-"""
-
 class BipedCtrlClient(PersistentTcpClient):
     def get_command(self, msg):
         data_bin = json2bin(msg)
@@ -260,6 +231,7 @@ def main():
     sensor = env.get_sensor()
     print("=================")
     env.reset()
+
     print(kuavo.get_arm_idx())
     print(kuavo.get_leg_idx())
     
@@ -293,6 +265,10 @@ def main():
     print("zarm_r6_joint: ", kuavo.get_joint_index("zarm_r6_joint"))
     print("zarm_r7_joint: ", kuavo.get_joint_index("zarm_r7_joint"))
     
+    # # 头部index
+    # print("zhead_1_joint: ", kuavo.get_joint_index("zhead_1_joint")) # 4 
+    # print("zhead_2_joint: ", kuavo.get_joint_index("zhead_2_joint")) # 9
+
     # # 只获取总质量
     # total_mass = kuavo.get_total_mass()
     # 获取总质量并打印详细信息
@@ -302,12 +278,12 @@ def main():
     # Task Controller Init.
     ctrl = KuavoController()
     action = None
-    
+
     # 初始暂停仿真
     env.sim.pause()
     print("Simulation paused. Waiting for first command from client...")
-    
     first_cmd_received = False
+
     while True:
         if ctrl.client is None:
             ctrl.reconnect(env)

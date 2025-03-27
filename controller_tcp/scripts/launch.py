@@ -22,7 +22,7 @@ def launch_isaac_sim():
         env['PYTHONPATH'] = f"{target_dir}:{env.get('PYTHONPATH', '')}"
         
         # Run the isaac sim command with bash explicitly
-        command = f"bash -c '{isaac_python} nio/main.py'"
+        command = f"bash -c '{isaac_python} nio/main_mpc.py'"
         print(f"Executing command: {command}")
         print(f"PYTHONPATH: {env['PYTHONPATH']}")
         

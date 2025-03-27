@@ -86,7 +86,14 @@ KuavoVirtualController::KuavoVirtualController() : nh_(nullptr) {
     ros::NodeHandle* callback_nh = new ros::NodeHandle();
     auto callback_queue = new ros::CallbackQueue();
     callback_nh->setCallbackQueue(callback_queue);
-    
+
+    // 获取机器人版本参数
+    nh_->param<int>("robot_version", robot_version_, 40); // 默认为40版本
+    ROS_INFO("Initializing robot version: %d", robot_version_);
+
+    // 创建关节索引
+    setupJointIndices();
+
     // 创建发布者和订阅者，使用callback_nh
     sensor_pub_ = callback_nh->advertise<kuavo_msgs::sensorsData>("/sensors_data_raw", 1000);
     cmd_sub_ = callback_nh->subscribe("/joint_cmd", 1, &KuavoVirtualController::jointCmdCallback, this);
@@ -165,48 +172,92 @@ void KuavoVirtualController::jointCmdCallback(const kuavo_msgs::jointCmd::ConstP
     latest_vel_arm.resize(14);  // 7 joints * 2 arms
     latest_vel_leg.resize(12);  // 6 joints * 2 legs
 
-    // 重新组织手臂力矩数据
-    // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
-    for (int i = 0; i < 7; i++) {
-        latest_tau_arm[i * 2] = msg->tau[i + 12];      // 左臂 (从索引12开始)
-        latest_tau_arm[i * 2 + 1] = msg->tau[i + 19];  // 右臂 (从索引19开始)
-    }
+    if (robot_version_ == 40) {  // 40 短手短脚
+        // 重新组织手臂力矩数据
+        // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
+        for (int i = 0; i < 7; i++) {
+            latest_tau_arm[i * 2] = msg->tau[i + 12];      // 左臂 (从索引12开始)
+            latest_tau_arm[i * 2 + 1] = msg->tau[i + 19];  // 右臂 (从索引19开始)
+        }
     
-    // 重新组织腿部力矩数据
-    // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
-    for (int i = 0; i < 6; i++) {
-        latest_tau_leg[i * 2] = msg->tau[i];       // 左腿 (从索引0开始)
-        latest_tau_leg[i * 2 + 1] = msg->tau[i + 6];   // 右腿 (从索引6开始)
-    }
+        // 重新组织腿部力矩数据
+        // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
+        for (int i = 0; i < 6; i++) {
+            latest_tau_leg[i * 2] = msg->tau[i];       // 左腿 (从索引0开始)
+            latest_tau_leg[i * 2 + 1] = msg->tau[i + 6];   // 右腿 (从索引6开始)
+        }
 
-    // 重新组织手臂位置数据
-    // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
-    for (int i = 0; i < 7; i++) {
-        latest_pos_arm[i * 2] = msg->joint_q[i + 12];      // 左臂 (从索引12开始)
-        latest_pos_arm[i * 2 + 1] = msg->joint_q[i + 19];  // 右臂 (从索引19开始)
-    }
+        // 重新组织手臂位置数据
+        // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
+        for (int i = 0; i < 7; i++) {
+            latest_pos_arm[i * 2] = msg->joint_q[i + 12];      // 左臂 (从索引12开始)
+            latest_pos_arm[i * 2 + 1] = msg->joint_q[i + 19];  // 右臂 (从索引19开始)
+        }
     
-    // 重新组织腿部位置数据
-    // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
-    for (int i = 0; i < 6; i++) {
-        latest_pos_leg[i * 2] = msg->joint_q[i];       // 左腿 (从索引0开始)
-        latest_pos_leg[i * 2 + 1] = msg->joint_q[i + 6];   // 右腿 (从索引6开始)
-    }
+        // 重新组织腿部位置数据
+        // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
+        for (int i = 0; i < 6; i++) {
+            latest_pos_leg[i * 2] = msg->joint_q[i];       // 左腿 (从索引0开始)
+            latest_pos_leg[i * 2 + 1] = msg->joint_q[i + 6];   // 右腿 (从索引6开始)
+        }
 
-    // 重新组织手臂速度数据
-    // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
-    for (int i = 0; i < 7; i++) {
-        latest_vel_arm[i * 2] = msg->joint_v[i + 12];      // 左臂 (从索引12开始)   
-        latest_vel_arm[i * 2 + 1] = msg->joint_v[i + 19];  // 右臂 (从索引19开始)
-    }
+        // 重新组织手臂速度数据
+        // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
+        for (int i = 0; i < 7; i++) {
+            latest_vel_arm[i * 2] = msg->joint_v[i + 12];      // 左臂 (从索引12开始)   
+            latest_vel_arm[i * 2 + 1] = msg->joint_v[i + 19];  // 右臂 (从索引19开始)
+        }
 
-    // 重新组织腿部速度数据
-    // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
-    for (int i = 0; i < 6; i++) {
-        latest_vel_leg[i * 2] = msg->joint_v[i];       // 左腿 (从索引0开始)
-        latest_vel_leg[i * 2 + 1] = msg->joint_v[i + 6];   // 右腿 (从索引6开始)
+        // 重新组织腿部速度数据
+        // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
+        for (int i = 0; i < 6; i++) {
+            latest_vel_leg[i * 2] = msg->joint_v[i];       // 左腿 (从索引0开始)
+            latest_vel_leg[i * 2 + 1] = msg->joint_v[i + 6];   // 右腿 (从索引6开始)
+        }
+    }
+    else if (robot_version_ == 45) {  // 45 长手长脚
+        // 重新组织手臂力矩数据
+        // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
+        for (int i = 0; i < 7; i++) {
+            latest_tau_arm[i * 2] = msg->tau[i + 12];      // 左臂 (从索引12开始)
+            latest_tau_arm[i * 2 + 1] = msg->tau[i + 19];  // 右臂 (从索引19开始)
+        }
+    
+        // 重新组织腿部力矩数据
+        // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
+        for (int i = 0; i < 6; i++) {
+            latest_tau_leg[i * 2] = msg->tau[i];       // 左腿 (从索引0开始)
+            latest_tau_leg[i * 2 + 1] = msg->tau[i + 6];   // 右腿 (从索引6开始)
+        }
+
+        // 重新组织手臂位置数据
+        // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
+        for (int i = 0; i < 7; i++) {
+            latest_pos_arm[i * 2] = msg->joint_q[i + 12];      // 左臂 (从索引12开始)
+            latest_pos_arm[i * 2 + 1] = msg->joint_q[i + 19];  // 右臂 (从索引19开始)
+        }
+    
+        // 重新组织腿部位置数据
+        // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
+        for (int i = 0; i < 6; i++) {
+            latest_pos_leg[i * 2] = msg->joint_q[i];       // 左腿 (从索引0开始)
+            latest_pos_leg[i * 2 + 1] = msg->joint_q[i + 6];   // 右腿 (从索引6开始)
+        }
+
+        // 重新组织手臂速度数据
+        // zarm_l1_joint, zarm_r1_joint, zarm_l2_joint, zarm_r2_joint, ...
+        for (int i = 0; i < 7; i++) {
+            latest_vel_arm[i * 2] = msg->joint_v[i + 12];      // 左臂 (从索引12开始)   
+            latest_vel_arm[i * 2 + 1] = msg->joint_v[i + 19];  // 右臂 (从索引19开始)
+        }
+
+        // 重新组织腿部速度数据
+        // leg_l1_joint, leg_r1_joint, leg_l2_joint, leg_r2_joint, ...
+        for (int i = 0; i < 6; i++) {
+            latest_vel_leg[i * 2] = msg->joint_v[i];       // 左腿 (从索引0开始)
+            latest_vel_leg[i * 2 + 1] = msg->joint_v[i + 6];   // 右腿 (从索引6开始)
+        }
     }   
-    
 }
 
 // 添加获取力矩数据的方法
@@ -361,16 +412,6 @@ void KuavoVirtualController::timerCallback(const ros::TimerEvent&) {
     // 只在running状态下发布消息
     if (is_running_) {
         sensor_pub_.publish(sensor_msg);
-        
-        // // 调试信息
-        // if (++publish_counter_ % 500 == 0) {  // 每500次打印一次
-        //     for (size_t i = 0; i < 5; ++i) {  // 只打印前5个关节的数据
-        //         ROS_INFO("Joint %zu - Velocity: %f, Acceleration: %f", 
-        //                  i, 
-        //                  sensor_msg.joint_data.joint_v[i],
-        //                  sensor_msg.joint_data.joint_vd[i]);
-        //     }
-        // }
     }
 }
 
@@ -397,6 +438,36 @@ geometry_msgs::Quaternion KuavoVirtualController::interpolateQuaternion(
     return result;
 }
 
+/**
+    初始化关节索引
+*/
+void KuavoVirtualController::setupJointIndices() {
+    if (robot_version_ == 40) {  // 4代短手短脚
+        // 左腿关节索引 (l1-l6)
+        joint_indices_.leg_l_indices = {0, 4, 8, 12, 16, 20};
+        // 右腿关节索引 (r1-r6)
+        joint_indices_.leg_r_indices = {1, 5, 9, 13, 17, 21};
+        // 左臂关节索引 (l1-l7)
+        joint_indices_.arm_l_indices = {2, 6, 10, 14, 18, 22, 24};
+        // 右臂关节索引 (r1-r7)
+        joint_indices_.arm_r_indices = {3, 7, 11, 15, 19, 23, 25};
+    } 
+    else if (robot_version_ == 45) {  // 4pro长手
+        // 左腿关节索引 (l1-l6)
+        joint_indices_.leg_l_indices = {0, 5, 10, 14, 18, 22};
+        // 右腿关节索引 (r1-r6)
+        joint_indices_.leg_r_indices = {1, 6, 11, 15, 19, 23};
+        // 左臂关节索引 (l1-l7)
+        joint_indices_.arm_l_indices = {2, 7, 12, 16, 20, 24, 26};
+        // 右臂关节索引 (r1-r7)
+        joint_indices_.arm_r_indices = {3, 8, 13, 17, 21, 25, 27};
+    }
+    ROS_INFO("Joint indices initialized for robot version %d", robot_version_);
+}
+
+/**
+    更新传感器数据
+*/
 void KuavoVirtualController::updateSensorMessage(const json& isaac_data) {
     std::lock_guard<std::mutex> lock(sensor_mutex_);
     
@@ -421,64 +492,102 @@ void KuavoVirtualController::updateSensorMessage(const json& isaac_data) {
     std::vector<double> dq_leg = isaac_data["dq_leg"].get<std::vector<double>>();
     std::vector<double> q_arm = isaac_data["q_arm"].get<std::vector<double>>();
     std::vector<double> dq_arm = isaac_data["dq_arm"].get<std::vector<double>>();
-    
-    // 重新排列数据
-    const int LEG_JOINTS_PER_SIDE = 6;
-    const int ARM_JOINTS_PER_SIDE = 7;
-    const int HEAD_JOINTS = 2;  // 添加头部关节数量
-    const int TOTAL_JOINTS = (LEG_JOINTS_PER_SIDE + ARM_JOINTS_PER_SIDE) * 2 + HEAD_JOINTS;
-    
+    std::vector<double> current_leg = isaac_data["current_leg"].get<std::vector<double>>();
+    std::vector<double> current_arm = isaac_data["current_arm"].get<std::vector<double>>();
+        
     current_data_.joint_q.resize(TOTAL_JOINTS);
     current_data_.joint_v.resize(TOTAL_JOINTS);
     current_data_.joint_current.resize(TOTAL_JOINTS);
     
-    // 处理左腿关节 (0-5)
-    for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
-        current_data_.joint_q[i] = q_leg[i * 2];
-        current_data_.joint_v[i] = dq_leg[i * 2];
-    }
+    // 组合q dq current 关节数据
+    if (robot_version_ == 40) { // 40 短手短脚
+        // 处理左腿关节 (0-5)
+        for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i] = q_leg[i * 2];
+            current_data_.joint_v[i] = dq_leg[i * 2];
+        }
     
-    // 处理右腿关节 (6-11)
-    for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
-        current_data_.joint_q[i + LEG_JOINTS_PER_SIDE] = q_leg[i * 2 + 1];
-        current_data_.joint_v[i + LEG_JOINTS_PER_SIDE] = dq_leg[i * 2 + 1];
-    }
+        // 处理右腿关节 (6-11)
+        for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i + LEG_JOINTS_PER_SIDE] = q_leg[i * 2 + 1];
+            current_data_.joint_v[i + LEG_JOINTS_PER_SIDE] = dq_leg[i * 2 + 1];
+        }
     
-    // 处理左臂关节 (12-18)
-    for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
-        current_data_.joint_q[i + LEG_JOINTS_PER_SIDE * 2] = q_arm[i * 2];
-        current_data_.joint_v[i + LEG_JOINTS_PER_SIDE * 2] = dq_arm[i * 2];
-    }
+        // 处理左臂关节 (12-18)
+        for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i + LEG_JOINTS_PER_SIDE * 2] = q_arm[i * 2];
+            current_data_.joint_v[i + LEG_JOINTS_PER_SIDE * 2] = dq_arm[i * 2];
+        }
     
-    // 处理右臂关节 (19-25)
-    for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
-        current_data_.joint_q[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = q_arm[i * 2 + 1];
-        current_data_.joint_v[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = dq_arm[i * 2 + 1];
-    }
+        // 处理右臂关节 (19-25)
+        for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = q_arm[i * 2 + 1];
+            current_data_.joint_v[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = dq_arm[i * 2 + 1];
+        }
     
-    // 添加头部关节 (26-27)，设置为0.0
-    const int HEAD_START_IDX = TOTAL_JOINTS - HEAD_JOINTS;
-    for (int i = 0; i < HEAD_JOINTS; i++) {
-        current_data_.joint_q[HEAD_START_IDX + i] = 0.0;
-        current_data_.joint_v[HEAD_START_IDX + i] = 0.0;
-        current_data_.joint_current[HEAD_START_IDX + i] = 0.0;
-    }
-
-    // 获取力矩数据
-    std::vector<double> current_leg = isaac_data["current_leg"].get<std::vector<double>>();
-    std::vector<double> current_arm = isaac_data["current_arm"].get<std::vector<double>>();
+        // 添加头部关节 (26-27)，设置为0.0
+        const int HEAD_START_IDX = TOTAL_JOINTS - HEAD_JOINTS;
+        for (int i = 0; i < HEAD_JOINTS; i++) {
+            current_data_.joint_q[HEAD_START_IDX + i] = 0.0;
+            current_data_.joint_v[HEAD_START_IDX + i] = 0.0;
+            current_data_.joint_current[HEAD_START_IDX + i] = 0.0;
+        }
     
-    // 重新组织力矩数据
-    for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
-        current_data_.joint_current[i] = current_leg[i * 2];                    // 左腿
-        current_data_.joint_current[i + LEG_JOINTS_PER_SIDE] = current_leg[i * 2 + 1];  // 右腿
-    }
+        // 重新组织力矩数据
+        for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_current[i] = current_leg[i * 2];                    // 左腿
+            current_data_.joint_current[i + LEG_JOINTS_PER_SIDE] = current_leg[i * 2 + 1];  // 右腿
+        }
     
-    for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
-        current_data_.joint_current[i + LEG_JOINTS_PER_SIDE * 2] = current_arm[i * 2];  // 左臂
-        current_data_.joint_current[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = current_arm[i * 2 + 1];  // 右臂
+        for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_current[i + LEG_JOINTS_PER_SIDE * 2] = current_arm[i * 2];  // 左臂
+            current_data_.joint_current[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = current_arm[i * 2 + 1];  // 右臂
+        }
     }
-
+    else if (robot_version_ == 45) { // 45 长手
+        // 处理左腿关节 (0-5)
+        for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i] = q_leg[i * 2];
+            current_data_.joint_v[i] = dq_leg[i * 2];
+        }
+    
+        // 处理右腿关节 (6-11)
+        for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i + LEG_JOINTS_PER_SIDE] = q_leg[i * 2 + 1];
+            current_data_.joint_v[i + LEG_JOINTS_PER_SIDE] = dq_leg[i * 2 + 1];
+        }
+    
+        // 处理左臂关节 (12-18)
+        for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i + LEG_JOINTS_PER_SIDE * 2] = q_arm[i * 2];
+            current_data_.joint_v[i + LEG_JOINTS_PER_SIDE * 2] = dq_arm[i * 2];
+        }
+    
+        // 处理右臂关节 (19-25)
+        for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_q[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = q_arm[i * 2 + 1];
+            current_data_.joint_v[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = dq_arm[i * 2 + 1];
+        }
+    
+        // 添加头部关节 (26-27)，设置为0.0
+        const int HEAD_START_IDX = TOTAL_JOINTS - HEAD_JOINTS;
+        for (int i = 0; i < HEAD_JOINTS; i++) {
+            current_data_.joint_q[HEAD_START_IDX + i] = 0.0;
+            current_data_.joint_v[HEAD_START_IDX + i] = 0.0;
+            current_data_.joint_current[HEAD_START_IDX + i] = 0.0;
+        }
+    
+        // 重新组织力矩数据
+        for (int i = 0; i < LEG_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_current[i] = current_leg[i * 2];                    // 左腿
+            current_data_.joint_current[i + LEG_JOINTS_PER_SIDE] = current_leg[i * 2 + 1];  // 右腿
+        }
+    
+        for (int i = 0; i < ARM_JOINTS_PER_SIDE; i++) {
+            current_data_.joint_current[i + LEG_JOINTS_PER_SIDE * 2] = current_arm[i * 2];  // 左臂
+            current_data_.joint_current[i + LEG_JOINTS_PER_SIDE * 2 + ARM_JOINTS_PER_SIDE] = current_arm[i * 2 + 1];  // 右臂
+        }
+    }
     // 设置IMU数据 - IMU正常
     std::vector<double> linear_acc = imu_data["linear_acceleration"].get<std::vector<double>>();
     std::vector<double> angular_vel = imu_data["angular_velocity"].get<std::vector<double>>();

@@ -130,6 +130,25 @@ private:
     // 添加存储速度数据的成员变量
     std::vector<double> latest_vel_arm;
     std::vector<double> latest_vel_leg;
+
+    // 添加机器人版本相关成员
+    int robot_version_;
+    static const int LEG_JOINTS_PER_SIDE = 6;
+    static const int ARM_JOINTS_PER_SIDE = 7;
+    static const int HEAD_JOINTS = 2;  // 添加头部关节数量
+    static const int TOTAL_JOINTS = (LEG_JOINTS_PER_SIDE + ARM_JOINTS_PER_SIDE) * 2 + HEAD_JOINTS;
+    static const int HEAD_START_IDX = TOTAL_JOINTS - HEAD_JOINTS;
+    // 添加关节索引映射结构
+    struct JointIndices {
+        // 腿部关节索引
+        std::vector<int> leg_l_indices;  // 左腿关节索引
+        std::vector<int> leg_r_indices;  // 右腿关节索引
+        // 手臂关节索引
+        std::vector<int> arm_l_indices;  // 左臂关节索引
+        std::vector<int> arm_r_indices;  // 右臂关节索引
+    };
+    JointIndices joint_indices_;
+    void setupJointIndices();
 };
 
 // 原有的函数声明
